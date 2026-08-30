@@ -9,26 +9,51 @@ st.set_page_config(
 
 FILE_PATH = "oikonomika.txt"
 
-# Μινιμαλιστικό και καθαρό CSS styling
+# Custom CSS για σκούρο φόντο και μπορντό κουμπιά
 st.markdown("""
     <style>
+    /* Σκούρο φόντο σελίδας (προς μαύρο/βαθύ μπλε) */
+    .stApp {
+        background-color: #0b0f19;
+        color: #f1f5f9;
+    }
+    
+    /* Κάρτες στατιστικών */
     .stMetric {
-        background-color: #ffffff;
+        background-color: #151c2c;
         padding: 12px;
         border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        border: 1px solid #e9ecef;
+        border: 1px solid #2a3650;
+    }
+    
+    /* Μπορντό κουμπιά */
+    div.stButton > button, div.stFormSubmitButton > button {
+        background-color: #7a1c2e !important;
+        color: #ffffff !important;
+        border-radius: 6px !important;
+        border: none !important;
+        font-weight: bold;
+        width: 100%;
+    }
+    
+    div.stButton > button:hover, div.stFormSubmitButton > button:hover {
+        background-color: #5c1321 !important;
+        color: #ffffff !important;
+    }
+    
+    /* Πεδία κειμένου */
+    .stTextInput input, .stSelectbox select {
+        background-color: #151c2c !important;
+        color: #ffffff !important;
+        border: 1px solid #2a3650 !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
 st.title("💳 Διαχείριση Οικονομικών")
-st.write(
-    "Όλα τα δεδομένα, τα στατιστικά και η διαχείριση σε μία ενιαία σελίδα."
-)
+st.write("Όλα τα δεδομένα, τα στατιστικά και η διαχείριση σε μία ενιαία σελίδα.")
 
 
-# Συνάρτηση φόρτωσης δεδομένων
 def load_data():
   if not os.path.exists(FILE_PATH):
     return []
@@ -47,15 +72,16 @@ def load_data():
   return entries
 
 
-# Συνάρτηση αποθήκευσης
 def save_entry(poso, katigoria, perigrafi):
   entry_id = datetime.now().strftime("%Y%m%d%H%M%S")
   date_str = datetime.now().strftime("%Y-%m-%d %H:%M")
   with open(FILE_PATH, "a", encoding="utf-8") as f:
-    f.write(f"{entry_id} | {date_str} | {poso} | {katigoria} | {perigrafi}\n")
+    f.write(
+        f"{entry_id} | {date_str} | {poso} | {katigoria} |"
+        f" {perigrafi}\n"
+    )
 
 
-# Συνάρτηση διαγραφής
 def delete_entry(entry_id):
   entries = load_data()
   with open(FILE_PATH, "w", encoding="utf-8") as f:
@@ -67,7 +93,14 @@ def delete_entry(entry_id):
         )
 
 
-# Φόρμα εισαγωγής με κουμπιά δίπλα-δίπλα (Αποθήκευση & Διαγραφή τελευταίου)
+def delete_last_entry():
+  entries = load_data()
+  if entries:
+    last_id = entries[-1]["id"]
+    delete_entry(last_id)
+
+
+# Φόρμα εισαγωγής με κουμπιά Αποθήκευση & Διαγραφή δίπλα-δίπλα
 with st.form("budget_form", clear_on_submit=True):
   st.subheader("➕ Νέα Καταχώρηση")
   col1, col2 = st.columns(2)
@@ -90,19 +123,12 @@ with st.form("budget_form", clear_on_submit=True):
       "Περιγραφή (προαιρετικό)", placeholder="π.χ. Ψώνια εβδομάδας"
   )
 
-  # Κουμπιά δίπλα-δύπλα στη φόρμα
-  f_col1, f_col2 = st.columns(2)
-  with f_col1:
-    submit_button = st.form_submit_button(
-        label="💾 Αποθήκευση", use_container_width=True
-    )
-  with f_col2:
-    # Ενημερωτικό μήνυμα δίπλα στο κουμπί αποθήκευσης
-    st.markdown(
-        "<div style='text-align: center; color: #6c757d; font-size: 12px; "
-        "margin-top: 10px;'>💡 Η διαγραφή γίνεται κάτω στο ιστορικό</div>",
-        unsafe_allow_html=True,
-    )
+  # Κουμπιά δίπλα-δίπλα
+  b_col1, b_col2 = st.columns(2)
+  with b_col1:
+    submit_button = st.form_submit_button(label="💾 Αποθήκευση")
+  with b_col2:
+    delete_last_button = st.form_submit_button(label="❌ Διαγραφή Τελευτ.")
 
 if submit_button:
   if not poso.strip():
@@ -117,25 +143,32 @@ if submit_button:
     except ValueError:
       st.error("Το ποσό πρέπει να είναι έγκυρος αριθμός.")
 
+if delete_last_button:
+  entries = load_data()
+  if entries:
+    delete_last_entry()
+    st.success("Η τελευταία εγγραφή διαγράφηκε επιτυχώς!")
+    st.rerun()
+  else:
+    st.warning("Δεν υπάρχουν εγγραφές για διαγραφή.")
+
 # Ανάγνωση δεδομένων
 entries = load_data()
 
 st.divider()
 
-# Εμφάνιση Στατιστικών απευθείας στην οθόνη (χωρίς κρυφά μενού)
+# Στατιστικά
 st.subheader("📊 Στατιστικά & Ανάλυση")
 
 if entries:
   total_spent = sum(float(e["poso"]) for e in entries)
   total_entries = len(entries)
 
-  # Υπολογισμός ανά κατηγορία
   category_totals = {}
   for e in entries:
     cat = e["katigoria"]
     category_totals[cat] = category_totals.get(cat, 0.0) + float(e["poso"])
 
-  # Βασικές μετρικές
   m1, m2 = st.columns(2)
   m1.metric(label="Συνολικό Ποσό", value=f"{total_spent:.2f} €")
   m2.metric(label="Συνολικές Εγγραφές", value=total_entries)
@@ -152,11 +185,9 @@ if entries:
 
   st.divider()
 
-  # Ιστορικό Συναλλαγών με κουμπί διαγραφής δίπλα σε κάθε εγγραφή
-  st.subheader("📋 Ιστορικό Συναλλαγών & Διαγραφή")
-  st.write("Εδώ μπορείτε να δείτε αναλυτικά τις εγγραφές και να διαγράψετε όποια θέλετε.")
-
-  for entry in reversed(entries):  # Νεότερες πρώτες
+  # Ιστορικό
+  st.subheader("📋 Ιστορικό Συναλλαγών")
+  for entry in reversed(entries):
     cols = st.columns([2, 2, 4, 1])
     cols[0].text(entry["date"])
     cols[1].text(f"{entry['poso']} €")
@@ -167,7 +198,6 @@ if entries:
     if cols[3].button("❌ Διαγ.", key=f"del_{entry['id']}", help="Διαγραφή"):
       delete_entry(entry["id"])
       st.rerun()
-
 else:
   st.info(
       "Δεν υπάρχουν αποθηκευμένες εγγραφές ακόμα. Πρόσθεσε την πρώτη σου"
