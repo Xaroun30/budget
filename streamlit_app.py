@@ -9,34 +9,23 @@ st.set_page_config(
 
 FILE_PATH = "oikonomika.txt"
 
-# Επαγγελματικό CSS styling (μινιμαλιστικό, καθαρό, χωρίς υπερβολές)
+# Μινιμαλιστικό και καθαρό CSS styling
 st.markdown("""
     <style>
-    .main {
-        background-color: #f8f9fa;
-    }
     .stMetric {
         background-color: #ffffff;
-        padding: 15px;
+        padding: 12px;
         border-radius: 8px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         border: 1px solid #e9ecef;
-    }
-    .entry-card {
-        background-color: #ffffff;
-        padding: 12px 16px;
-        border-radius: 6px;
-        margin-bottom: 8px;
-        border: 1px solid #e9ecef;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
     }
     </style>
 """, unsafe_allow_html=True)
 
 st.title("💳 Διαχείριση Οικονομικών")
-st.write("Παρακολουθήστε τα έξοδά σας με ακρίβεια και καθαρότητα.")
+st.write(
+    "Όλα τα δεδομένα, τα στατιστικά και η διαχείριση σε μία ενιαία σελίδα."
+)
 
 
 # Συνάρτηση φόρτωσης δεδομένων
@@ -78,7 +67,7 @@ def delete_entry(entry_id):
         )
 
 
-# Φόρμα εισαγωγής
+# Φόρμα εισαγωγής με κουμπιά δίπλα-δίπλα (Αποθήκευση & Διαγραφή τελευταίου)
 with st.form("budget_form", clear_on_submit=True):
   st.subheader("➕ Νέα Καταχώρηση")
   col1, col2 = st.columns(2)
@@ -100,16 +89,26 @@ with st.form("budget_form", clear_on_submit=True):
   perigrafi = st.text_input(
       "Περιγραφή (προαιρετικό)", placeholder="π.χ. Ψώνια εβδομάδας"
   )
-  submit_button = st.form_submit_button(
-      label="💾 Αποθήκευση Εγγραφής", use_container_width=True
-  )
+
+  # Κουμπιά δίπλα-δύπλα στη φόρμα
+  f_col1, f_col2 = st.columns(2)
+  with f_col1:
+    submit_button = st.form_submit_button(
+        label="💾 Αποθήκευση", use_container_width=True
+    )
+  with f_col2:
+    # Ενημερωτικό μήνυμα δίπλα στο κουμπί αποθήκευσης
+    st.markdown(
+        "<div style='text-align: center; color: #6c757d; font-size: 12px; "
+        "margin-top: 10px;'>💡 Η διαγραφή γίνεται κάτω στο ιστορικό</div>",
+        unsafe_allow_html=True,
+    )
 
 if submit_button:
   if not poso.strip():
     st.warning("Παρακαλώ συμπλήρωσε το ποσό.")
   else:
     try:
-      # Αντικατάσταση κόμματος με τελεία αν ο χρήστης βάλει κόμμα
       poso_clean = poso.strip().replace(",", ".")
       float(poso_clean)
       save_entry(poso_clean, katigoria, perigrafi)
@@ -118,41 +117,44 @@ if submit_button:
     except ValueError:
       st.error("Το ποσό πρέπει να είναι έγκυρος αριθμός.")
 
-# Ανάγνωση δεδομένων για τα στατιστικά και τη λίστα
+# Ανάγνωση δεδομένων
 entries = load_data()
 
 st.divider()
 
+# Εμφάνιση Στατιστικών απευθείας στην οθόνη (χωρίς κρυφά μενού)
+st.subheader("📊 Στατιστικά & Ανάλυση")
+
 if entries:
-  # Υπολογισμοί
   total_spent = sum(float(e["poso"]) for e in entries)
   total_entries = len(entries)
 
-  # Υπολογισμός ανα κατηγορία
+  # Υπολογισμός ανά κατηγορία
   category_totals = {}
   for e in entries:
     cat = e["katigoria"]
     category_totals[cat] = category_totals.get(cat, 0.0) + float(e["poso"])
 
-  # Εμφάνιση βασικών μετρικών
-  st.subheader("📊 Στατιστικά Επισκόπηση")
+  # Βασικές μετρικές
   m1, m2 = st.columns(2)
   m1.metric(label="Συνολικό Ποσό", value=f"{total_spent:.2f} €")
   m2.metric(label="Συνολικές Εγγραφές", value=total_entries)
 
-  # Ανάλυση ανά κατηγορία με μπάρες προόδου
-  with st.expander("📈 Ανάλυση ανά Κατηγορία", expanded=True):
-    for cat, amount in category_totals.items():
-      percentage = amount / total_spent if total_spent > 0 else 0
-      col_c1, col_c2, col_c3 = st.columns([2, 4, 2])
-      col_c1.write(f"**{cat}**")
-      col_c2.progress(percentage)
-      col_c3.write(f"**{amount:.2f} €**")
+  st.write("##### 📌 Πού ξοδεύουμε τα περισσότερα (Ανά Κατηγορία):")
+  for cat, amount in sorted(
+      category_totals.items(), key=lambda x: x[1], reverse=True
+  ):
+    percentage = (amount / total_spent) * 100 if total_spent > 0 else 0
+    c_cat, c_bar, c_val = st.columns([2, 4, 2])
+    c_cat.write(f"**{cat}**")
+    c_bar.progress(percentage / 100.0)
+    c_val.write(f"**{amount:.2f} €** ({percentage:.1f}%)")
 
   st.divider()
 
-  # Ιστορικό και διαγραφή
-  st.subheader("📋 Ιστορικό Συναλλαγών")
+  # Ιστορικό Συναλλαγών με κουμπί διαγραφής δίπλα σε κάθε εγγραφή
+  st.subheader("📋 Ιστορικό Συναλλαγών & Διαγραφή")
+  st.write("Εδώ μπορείτε να δείτε αναλυτικά τις εγγραφές και να διαγράψετε όποια θέλετε.")
 
   for entry in reversed(entries):  # Νεότερες πρώτες
     cols = st.columns([2, 2, 4, 1])
@@ -162,7 +164,7 @@ if entries:
         f"[{entry['katigoria']}]"
         + (f" - {entry['perigrafi']}" if entry["perigrafi"] else "")
     )
-    if cols[3].button("❌", key=f"del_{entry['id']}", help="Διαγραφή"):
+    if cols[3].button("❌ Διαγ.", key=f"del_{entry['id']}", help="Διαγραφή"):
       delete_entry(entry["id"])
       st.rerun()
 
