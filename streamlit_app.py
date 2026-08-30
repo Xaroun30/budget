@@ -62,7 +62,7 @@ with st.form("budget_form", clear_on_submit=True):
     katigoria = st.selectbox(
         "Κατηγορία",
         [
-            "Εισόδημα",
+            "Μισθός (Έσοδο)",
             "Market",
             "Βενζίνη",
             "Τσιγάρα",
@@ -147,7 +147,8 @@ if valid_lines:
         ποσο_str = kat_poso[1].split("€")[0].strip()
         ποσο_val = float(ποσο_str)
 
-        if "Εισόδημα" in katigoria_line:
+        # Έλεγχος αν είναι έσοδο (πιάνει και το παλιό "Έσοδο" και το νέο "Εισόδημα")
+        if "Έσοδο" in katigoria_line or "Εισόδημα" in katigoria_line:
           esoda_synolo += ποσο_val
         else:
           eksoda_synolo += ποσο_val
