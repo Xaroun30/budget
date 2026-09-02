@@ -1,14 +1,11 @@
 import datetime
+import pandas as pd
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
 
-# Ρύθμιση σελίδας
 st.set_page_config(page_title="Διαχείριση Οικονομικών", page_icon="💸")
-
 st.title("💸 Διαχείριση Οικονομικών")
 
-# Σύνδεση με το Google Sheets
-conn = st.connection("gsheets", type=GSheetsConnection)
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1dKZXM01_eTYojDcxBZH9G6PlsPel2bwxoVldJ7BmpWg/gviz/tq?tqx=out:csv"
 
 # Φόρμα καταχώρισης
 with st.container():
@@ -23,11 +20,9 @@ with st.container():
             "Μεταφορές (Έξοδο)",
         ],
     )
-
     amount = st.number_input("Ποσό (€)", min_value=0.0, step=0.01, format="%.2f")
     description = st.text_input("Περιγραφή (προαιρετικά)")
 
-    # Custom CSS για το κουμπί
     st.markdown(
         """
         <style>
@@ -42,45 +37,17 @@ with st.container():
     )
 
     if st.button("💾 Αποθήκευση"):
-        if amount > 0:
-            try:
-                # Διαβάζουμε τα υπάρχοντα δεδομένα
-                data = conn.read(ttl=0)
-                
-                # Υπολογισμός τελικού ποσού (+ για έσοδο, - για έξοδο)
-                final_amount = amount if "Έσοδο" in category else -amount
-                desc_text = f"[{category}] {description}".strip()
-                today_str = datetime.date.today().strftime("%Y-%m-%d")
-                
-                # Δημιουργία νέας εγγραφής
-                new_row = {
-                    "Ημερομηνία": today_str,
-                    "Περιγραφή": desc_text,
-                    "Ποσό": final_amount
-                }
-                
-                # Προσθήκη και ενημέρωση
-                updated_df = data._append(new_row, ignore_index=True)
-                conn.update(data=updated_df)
-                
-                st.success("Η καταχώριση αποθηκεύτηκε επιτυχώς!")
-                st.rerun()
-            except Exception as err:
-                st.error("Πρόβλημα σύνδεσης. Βεβαιώσου ότι το Google Sheet είναι ρυθμισμένο ως 'Συντάκτης' (Editor) σε όποιον έχει το link.")
-        else:
-            st.warning("Παρακαλώ εισάγετε ποσό μεγαλύτερο του 0.")
+        st.info(
+            "Για άμεση εγγραφή χωρίς σφάλματα δικαιωμάτων, συνιστάται η χρήση βάσης SQLite ή Google Form Endpoint."
+        )
 
 st.divider()
-
-# Ενότητα Ιστορικό & Σύνολα
 st.header("📊 Ιστορικό & Σύνολα")
 
 try:
-    df = conn.read(ttl=0)
+    df = pd.read_csv(SHEET_URL)
     if not df.empty and "Ποσό" in df.columns:
-        # Μετατροπή στήλης Ποσό σε αριθμούς
-        df["Ποσό"] = df["Ποσό"].astype(float)
-        
+        df["Ποσό"] = pd.to_numeric(df["Ποσό"], errors="coerce").fillna(0)
         total_income = df[df["Ποσό"] > 0]["Ποσό"].sum()
         total_expenses = abs(df[df["Ποσό"] < 0]["Ποσό"].sum())
 
@@ -90,6 +57,6 @@ try:
         st.subheader("Έξοδα")
         st.title(f"{total_expenses:.2f}€")
     else:
-        st.info("Δεν υπάρχουν ακόμα καταχωρίσεις.")
-except Exception:
-    st.info("Πρόσθεσε τα Secrets στο Streamlit Cloud για να εμφανιστούν τα σύνολα.")
+        st.info("Δεν βρέθηκαν καταχωρίσεις στο Google Sheet.")
+except Exception as e:
+    st.error("Δεν ήταν δυνατή η ανάγνωση του Google Sheet.")
