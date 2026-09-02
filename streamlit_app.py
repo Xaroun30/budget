@@ -27,7 +27,7 @@ with st.container():
     amount = st.number_input("Ποσό (€)", min_value=0.0, step=0.01, format="%.2f")
     description = st.text_input("Περιγραφή (προαιρετικά)")
 
-    # Custom CSS για το μπορντό κουμπί
+    # Custom CSS για το κουμπί
     st.markdown(
         """
         <style>
@@ -44,40 +44,46 @@ with st.container():
     if st.button("💾 Αποθήκευση"):
         if amount > 0:
             try:
-                # Διαβάζουμε τα υπάρχοντα δεδομένα (χωρίς ελληνικό όνομα worksheet)
-                existing_data = conn.read(ttl=0)
+                # Διαβάζουμε τα υπάρχοντα δεδομένα
+                data = conn.read(ttl=0)
                 
-                # Δημιουργούμε τη νέα εγγραφή
-                new_entry = {
-                    "Ημερομηνία": datetime.date.today().strftime("%Y-%m-%d"),
-                    "Περιγραφή": f"[{category}] {description}".strip(),
-                    "Ποσό": amount if "Έσοδο" in category else -amount
+                # Υπολογισμός τελικού ποσού (+ για έσοδο, - για έξοδο)
+                final_amount = amount if "Έσοδο" in category else -amount
+                desc_text = f"[{category}] {description}".strip()
+                today_str = datetime.date.today().strftime("%Y-%m-%d")
+                
+                # Δημιουργία νέας εγγραφής
+                new_row = {
+                    "Ημερομηνία": today_str,
+                    "Περιγραφή": desc_text,
+                    "Ποσό": final_amount
                 }
                 
-                # Ενημερώνουμε το Google Sheet
-                updated_data = existing_data._append(new_entry, ignore_index=True)
-                conn.update(data=updated_data)
+                # Προσθήκη και ενημέρωση
+                updated_df = data._append(new_row, ignore_index=True)
+                conn.update(data=updated_df)
                 
-                st.success("Η καταχώριση αποθηκεύτηκε στο Google Sheet!")
+                st.success("Η καταχώριση αποθηκεύτηκε επιτυχώς!")
                 st.rerun()
-            except Exception as e:
-                st.error("Πρόβλημα κατά την αποθήκευση. Ελέγξτε τα Secrets ή το Google Sheet.")
+            except Exception as err:
+                st.error("Πρόβλημα σύνδεσης. Βεβαιώσου ότι το Google Sheet είναι ρυθμισμένο ως 'Συντάκτης' (Editor) σε όποιον έχει το link.")
         else:
             st.warning("Παρακαλώ εισάγετε ποσό μεγαλύτερο του 0.")
 
 st.divider()
 
-# Ενότητα Ιστορικό & Σύνολα από το Google Sheet
+# Ενότητα Ιστορικό & Σύνολα
 st.header("📊 Ιστορικό & Σύνολα")
 
 try:
     df = conn.read(ttl=0)
-    
     if not df.empty and "Ποσό" in df.columns:
-        # Υπολογισμός Εσόδων και Εξόδων
+        # Μετατροπή στήλης Ποσό σε αριθμούς
+        df["Ποσό"] = df["Ποσό"].astype(float)
+        
         total_income = df[df["Ποσό"] > 0]["Ποσό"].sum()
         total_expenses = abs(df[df["Ποσό"] < 0]["Ποσό"].sum())
-        
+
         st.subheader("Έσοδα")
         st.title(f"{total_income:.2f}€")
 
@@ -85,5 +91,5 @@ try:
         st.title(f"{total_expenses:.2f}€")
     else:
         st.info("Δεν υπάρχουν ακόμα καταχωρίσεις.")
-except Exception as e:
-    st.info("Σύνδεσε τα Secrets του Google Sheet στο Streamlit Cloud για να εμφανιστούν τα σύνολα.")
+except Exception:
+    st.info("Πρόσθεσε τα Secrets στο Streamlit Cloud για να εμφανιστούν τα σύνολα.")
