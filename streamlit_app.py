@@ -43,22 +43,25 @@ with st.container():
 
     if st.button("💾 Αποθήκευση"):
         if amount > 0:
-            # Διαβάζουμε τα υπάρχοντα δεδομένα από το Google Sheet
-            existing_data = conn.read(worksheet="Φύλλο1", ttl=0)
-            
-            # Δημιουργούμε τη νέα εγγραφή
-            new_entry = {
-                "Ημερομηνία": datetime.date.today().strftime("%Y-%m-%d"),
-                "Περιγραφή": f"[{category}] {description}".strip(),
-                "Ποσό": amount if "Έσοδο" in category else -amount
-            }
-            
-            # Προσθέτουμε τη νέα εγγραφή και ενημερώνουμε το Google Sheet
-            updated_data = existing_data._append(new_entry, ignore_index=True)
-            conn.update(worksheet="Φύλλο1", data=updated_data)
-            
-            st.success("Η καταχώριση αποθηκεύτηκε στο Google Sheet!")
-            st.rerun()
+            try:
+                # Διαβάζουμε τα υπάρχοντα δεδομένα (χωρίς ελληνικό όνομα worksheet)
+                existing_data = conn.read(ttl=0)
+                
+                # Δημιουργούμε τη νέα εγγραφή
+                new_entry = {
+                    "Ημερομηνία": datetime.date.today().strftime("%Y-%m-%d"),
+                    "Περιγραφή": f"[{category}] {description}".strip(),
+                    "Ποσό": amount if "Έσοδο" in category else -amount
+                }
+                
+                # Ενημερώνουμε το Google Sheet
+                updated_data = existing_data._append(new_entry, ignore_index=True)
+                conn.update(data=updated_data)
+                
+                st.success("Η καταχώριση αποθηκεύτηκε στο Google Sheet!")
+                st.rerun()
+            except Exception as e:
+                st.error("Πρόβλημα κατά την αποθήκευση. Ελέγξτε τα Secrets ή το Google Sheet.")
         else:
             st.warning("Παρακαλώ εισάγετε ποσό μεγαλύτερο του 0.")
 
@@ -68,7 +71,7 @@ st.divider()
 st.header("📊 Ιστορικό & Σύνολα")
 
 try:
-    df = conn.read(worksheet="Φύλλο1", ttl=0)
+    df = conn.read(ttl=0)
     
     if not df.empty and "Ποσό" in df.columns:
         # Υπολογισμός Εσόδων και Εξόδων
