@@ -9,8 +9,8 @@ st.title("💸 Διαχείριση Οικονομικών")
 # URL υποβολής Google Form
 FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfiLO2OQRHmMLUDvQPLzkcb7mZecFmCd24qZxzMC4Q7-4bbdw/formResponse"
 
-# URL ανάγνωσης Google Sheet (CSV)
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1dKZXM01_eTYojDcxBZH9G6PlsPel2bwxoVldJ7BmpWg/gviz/tq?tqx=out:csv"
+# URL δημοσιευμένου Google Sheet (CSV)
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS2RtsOct6uXLceFw6X7LtJT4YhtsIOPh0NUnET5dZvvmZFawtvqfuJi9sG70OHfM6Eqe2zPosBTKgz/pub?output=csv"
 
 # Φόρμα καταχώρισης
 with st.container():
@@ -64,18 +64,21 @@ st.divider()
 st.header("📊 Ιστορικό & Σύνολα")
 
 try:
-    # Ανάγνωση δεδομένων από το Google Sheet
+    # Ανάγνωση δεδομένων από το δημοσιευμένο CSV
     df = pd.read_csv(SHEET_CSV_URL)
 
-    if not df.empty:
-        # Καθαρισμός και ονομασία στηλών
-        df = df.iloc[:, :4]  # Κρατάμε τις 4 πρώτες στήλες
-        df.columns = ["Ημερομηνία", "Κατηγορία", "Ποσό", "Περιγραφή"]
+    if not df.empty and len(df.columns) >= 3:
+        # Κρατάμε τις 4 πρώτες στήλες αν υπάρχουν περισσότερες
+        df = df.iloc[:, :4]
+        
+        # Ονομασία στηλών για να φαίνονται όμορφα
+        cols = ["Χρονική σήμανση", "Κατηγορία", "Ποσό", "Περιγραφή"]
+        df.columns = cols[:len(df.columns)]
 
         # Μετατροπή στήλης Ποσού σε αριθμό
         df["Ποσό"] = pd.to_numeric(df["Ποσό"], errors="coerce")
 
-        # Φιλτράρουμε μόνο τις γραμμές που έχουν πραγματικό ποσό
+        # Φιλτράρισμα έγκυρων εγγραφών
         valid_df = df.dropna(subset=["Ποσό"]).copy()
 
         if not valid_df.empty:
@@ -96,7 +99,6 @@ try:
 
             # Εμφάνιση Αναλυτικού Ιστορικού
             st.subheader("📜 Αναλυτικό Ιστορικό Καταχωρίσεων")
-            # Αντιστροφή για να φαίνονται πρώτες οι πιο πρόσφατες
             st.dataframe(valid_df.iloc[::-1], use_container_width=True)
         else:
             st.info("Κάνε την πρώτη σου καταχώριση για να εμφανιστεί το ιστορικό!")
