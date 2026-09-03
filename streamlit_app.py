@@ -43,23 +43,22 @@ with st.container():
 
     if st.button("💾 Αποθήκευση"):
         if amount > 0:
+            # Θετικό ποσό για έσοδο, αρνητικό για έξοδο
             final_amount = amount if "Έσοδο" in category else -amount
-            desc_text = f"[{category}] {description}".strip()
-            today_str = datetime.date.today().strftime("%Y-%m-%d")
 
-            # Αποστολή στη Google Form
+            # Στοιχεία φόρμας με τα σωστά entry IDs
             form_data = {
-                "entry.1000000": today_str,
-                "entry.1000001": desc_text,
-                "entry.1000002": str(final_amount),
+                "entry.50882045": category,
+                "entry.502352790": str(final_amount),
+                "entry.1898516613": description,
             }
 
             try:
                 requests.post(FORM_URL, data=form_data)
-                st.success("Η καταχώριση αποθηκεύτηκε επιτυχώς!")
+                st.success(f"Αποθηκεύτηκαν {amount:.2f}€ στην κατηγορία '{category}'!")
                 st.rerun()
             except Exception:
-                st.error("Σφάλμα κατά την αποστολή των δεδομένων.")
+                st.error("Σφάλμα κατά την αποθήκευση.")
         else:
             st.warning("Παρακαλώ εισάγετε ποσό μεγαλύτερο του 0.")
 
@@ -69,18 +68,27 @@ st.header("📊 Ιστορικό & Σύνολα")
 try:
     df = pd.read_csv(SHEET_CSV_URL)
     if not df.empty and len(df.columns) >= 3:
-        # Παίρνουμε τη 3η στήλη ως Ποσό
+        # Μετατροπή στήλης ποσού (3η στήλη) σε αριθμό
         amount_col = df.columns[2]
         df[amount_col] = pd.to_numeric(df[amount_col], errors="coerce").fillna(0)
 
         total_income = df[df[amount_col] > 0][amount_col].sum()
         total_expenses = abs(df[df[amount_col] < 0][amount_col].sum())
+        remaining = total_income - total_expenses
 
-        st.subheader("Έσοδα")
-        st.title(f"{total_income:.2f}€")
+        # Εμφάνιση αποτελεσμάτων
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Έσοδα")
+            st.title(f"{total_income:.2f}€")
+        with col2:
+            st.subheader("Έξοδα")
+            st.title(f"{total_expenses:.2f}€")
 
-        st.subheader("Έξοδα")
-        st.title(f"{total_expenses:.2f}€")
+        st.metric(label="💰 Διαθέσιμο Υπόλοιπο (Τι μένει)", value=f"{remaining:.2f}€")
+
+        st.subheader("Πρόσφατες Καταχωρίσεις")
+        st.dataframe(df.tail(10), use_container_width=True)
     else:
         st.info("Δεν υπάρχουν ακόμα καταχωρίσεις.")
 except Exception:
