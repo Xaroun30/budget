@@ -43,10 +43,8 @@ with st.container():
 
     if st.button("💾 Αποθήκευση"):
         if amount > 0:
-            # Θετικό ποσό για έσοδο, αρνητικό για έξοδο
             final_amount = amount if "Έσοδο" in category else -amount
 
-            # Στοιχεία φόρμας με τα σωστά entry IDs
             form_data = {
                 "entry.50882045": category,
                 "entry.502352790": str(final_amount),
@@ -66,30 +64,43 @@ st.divider()
 st.header("📊 Ιστορικό & Σύνολα")
 
 try:
+    # Ανάγνωση δεδομένων από το Google Sheet
     df = pd.read_csv(SHEET_CSV_URL)
-    if not df.empty and len(df.columns) >= 3:
-        # Μετατροπή στήλης ποσού (3η στήλη) σε αριθμό
-        amount_col = df.columns[2]
-        df[amount_col] = pd.to_numeric(df[amount_col], errors="coerce").fillna(0)
 
-        total_income = df[df[amount_col] > 0][amount_col].sum()
-        total_expenses = abs(df[df[amount_col] < 0][amount_col].sum())
-        remaining = total_income - total_expenses
+    if not df.empty:
+        # Καθαρισμός και ονομασία στηλών
+        df = df.iloc[:, :4]  # Κρατάμε τις 4 πρώτες στήλες
+        df.columns = ["Ημερομηνία", "Κατηγορία", "Ποσό", "Περιγραφή"]
 
-        # Εμφάνιση αποτελεσμάτων
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Έσοδα")
-            st.title(f"{total_income:.2f}€")
-        with col2:
-            st.subheader("Έξοδα")
-            st.title(f"{total_expenses:.2f}€")
+        # Μετατροπή στήλης Ποσού σε αριθμό
+        df["Ποσό"] = pd.to_numeric(df["Ποσό"], errors="coerce")
 
-        st.metric(label="💰 Διαθέσιμο Υπόλοιπο (Τι μένει)", value=f"{remaining:.2f}€")
+        # Φιλτράρουμε μόνο τις γραμμές που έχουν πραγματικό ποσό
+        valid_df = df.dropna(subset=["Ποσό"]).copy()
 
-        st.subheader("Πρόσφατες Καταχωρίσεις")
-        st.dataframe(df.tail(10), use_container_width=True)
+        if not valid_df.empty:
+            total_income = valid_df[valid_df["Ποσό"] > 0]["Ποσό"].sum()
+            total_expenses = abs(valid_df[valid_df["Ποσό"] < 0]["Ποσό"].sum())
+            remaining = total_income - total_expenses
+
+            # Εμφάνιση υπολοίπων
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("Έσοδα")
+                st.title(f"{total_income:.2f}€")
+            with col2:
+                st.subheader("Έξοδα")
+                st.title(f"{total_expenses:.2f}€")
+
+            st.metric(label="💰 Διαθέσιμο Υπόλοιπο (Τι μένει)", value=f"{remaining:.2f}€")
+
+            # Εμφάνιση Αναλυτικού Ιστορικού
+            st.subheader("📜 Αναλυτικό Ιστορικό Καταχωρίσεων")
+            # Αντιστροφή για να φαίνονται πρώτες οι πιο πρόσφατες
+            st.dataframe(valid_df.iloc[::-1], use_container_width=True)
+        else:
+            st.info("Κάνε την πρώτη σου καταχώριση για να εμφανιστεί το ιστορικό!")
     else:
         st.info("Δεν υπάρχουν ακόμα καταχωρίσεις.")
 except Exception:
-    st.info("Αναμονή για τις πρώτες εγγραφές στο Google Sheet.")
+    st.info("Ανανέωσε τη σελίδα σε λίγο για να φορτώσουν τα δεδομένα.")
